@@ -2,7 +2,7 @@ import os
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
-from repo_schema import RepoAnalysisOutput
+from .repo_schema import RepoAnalysisOutput
 
 def build_llm():
     return ChatOpenAI(
