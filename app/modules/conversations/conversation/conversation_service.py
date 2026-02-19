@@ -45,6 +45,7 @@ from app.modules.conversations.session.session_service import SessionService
 from app.modules.conversations.utils.redis_streaming import RedisStreamManager
 from app.celery.celery_app import celery_app
 from .conversation_store import ConversationStore, StoreError
+from .structured_repo_analysis import run_structured_repo_analysis
 from ..message.message_store import MessageStore
 
 logger = setup_logger(__name__)
@@ -72,22 +73,22 @@ class AccessTypeReadError(ConversationServiceError):
 
 class ConversationService:
     def __init__(
-        self,
-        db: Session,
-        user_id: str,
-        user_email: str,
-        conversation_store: ConversationStore,
-        message_store: MessageStore,
-        project_service: ProjectService,
-        history_manager: ChatHistoryService,
-        provider_service: ProviderService,
-        tools_service: ToolService,
-        promt_service: PromptService,
-        agent_service: AgentsService,
-        custom_agent_service: CustomAgentService,
-        media_service: MediaService,
-        session_service: SessionService = None,
-        redis_manager: RedisStreamManager = None,
+            self,
+            db: Session,
+            user_id: str,
+            user_email: str,
+            conversation_store: ConversationStore,
+            message_store: MessageStore,
+            project_service: ProjectService,
+            history_manager: ChatHistoryService,
+            provider_service: ProviderService,
+            tools_service: ToolService,
+            promt_service: PromptService,
+            agent_service: AgentsService,
+            custom_agent_service: CustomAgentService,
+            media_service: MediaService,
+            session_service: SessionService = None,
+            redis_manager: RedisStreamManager = None,
     ):
         self.db = db
         self.user_id = user_id
@@ -111,7 +112,7 @@ class ConversationService:
         self.repo_manager = None
         try:
             repo_manager_enabled = (
-                os.getenv("REPO_MANAGER_ENABLED", "false").lower() == "true"
+                    os.getenv("REPO_MANAGER_ENABLED", "false").lower() == "true"
             )
             if repo_manager_enabled:
                 from app.modules.repo_manager import RepoManager
@@ -125,12 +126,12 @@ class ConversationService:
 
     @classmethod
     def create(
-        cls,
-        conversation_store: ConversationStore,
-        message_store: MessageStore,
-        db: Session,
-        user_id: str,
-        user_email: str,
+            cls,
+            conversation_store: ConversationStore,
+            message_store: MessageStore,
+            db: Session,
+            user_id: str,
+            user_email: str,
     ):
         project_service = ProjectService(db)
         history_manager = ChatHistoryService(db)
@@ -164,7 +165,7 @@ class ConversationService:
         )
 
     async def check_conversation_access(
-        self, conversation_id: str, user_email: str, firebase_user_id: str = None
+            self, conversation_id: str, user_email: str, firebase_user_id: str = None
     ) -> str:
         if not user_email:
             return ConversationAccessType.WRITE
@@ -214,14 +215,14 @@ class ConversationService:
         return ConversationAccessType.NOT_FOUND
 
     async def create_conversation(
-        self,
-        conversation: CreateConversationRequest,
-        user_id: str,
-        hidden: bool = False,
+            self,
+            conversation: CreateConversationRequest,
+            user_id: str,
+            hidden: bool = False,
     ) -> tuple[str, str]:
         try:
             if not await self.agent_service.validate_agent_id(
-                user_id, conversation.agent_ids[0]
+                    user_id, conversation.agent_ids[0]
             ):
                 raise ConversationServiceError(
                     f"Invalid agent_id: {conversation.agent_ids[0]}"
@@ -282,11 +283,11 @@ class ConversationService:
             ) from e
 
     async def _create_conversation_record(
-        self,
-        conversation: CreateConversationRequest,
-        title: str,
-        user_id: str,
-        hidden: bool = False,
+            self,
+            conversation: CreateConversationRequest,
+            title: str,
+            user_id: str,
+            hidden: bool = False,
     ) -> str:
         conversation_id = str(uuid7())
         new_conversation = Conversation(
@@ -387,7 +388,7 @@ class ConversationService:
 
             # Check if repo is already available
             if self.repo_manager.is_repo_available(
-                repo_name, branch=branch, commit_id=commit_id, user_id=user_id
+                    repo_name, branch=branch, commit_id=commit_id, user_id=user_id
             ):
                 logger.debug(
                     f"Repo {repo_name}@{commit_id or branch} already available in repo manager"
@@ -413,7 +414,7 @@ class ConversationService:
                 # Worktrees are stored in <base_path>/worktrees/<ref>
                 worktree_name = ref.replace("/", "_").replace("\\", "_")
                 expected_worktree_path = (
-                    expected_base_path / "worktrees" / worktree_name
+                        expected_base_path / "worktrees" / worktree_name
                 )
 
                 # Check if worktree exists but not registered
@@ -466,7 +467,7 @@ class ConversationService:
                 # Only register if it's not already in repo manager's base path
                 # (to avoid registering external paths)
                 if not str(repo_path).startswith(
-                    str(self.repo_manager.repos_base_path)
+                        str(self.repo_manager.repos_base_path)
                 ):
                     logger.debug(
                         f"Repo {repo_name} has external path {repo_path}, not registering in repo manager. "
@@ -497,7 +498,7 @@ class ConversationService:
             if ref:
                 worktree_name = ref.replace("/", "_").replace("\\", "_")
                 expected_worktree_path = (
-                    expected_base_path / "worktrees" / worktree_name
+                        expected_base_path / "worktrees" / worktree_name
                 )
                 expected_worktree_info = f"{expected_worktree_path} (exists: {expected_worktree_path.exists()})"
 
@@ -518,7 +519,7 @@ class ConversationService:
             # Don't fail the message if repo registration fails
 
     async def _add_system_message(
-        self, conversation_id: str, project_name: str, user_id: str
+            self, conversation_id: str, project_name: str, user_id: str
     ):
         content = f"You can now ask questions about the {project_name} repository."
         try:
@@ -542,12 +543,12 @@ class ConversationService:
             ) from e
 
     async def store_message(
-        self,
-        conversation_id: str,
-        message: MessageRequest,
-        message_type: MessageType,
-        user_id: str,
-        stream: bool = True,
+            self,
+            conversation_id: str,
+            message: MessageRequest,
+            message_type: MessageType,
+            user_id: str,
+            stream: bool = True,
     ) -> AsyncGenerator[ChatMessageResponse, None]:
         try:
             logger.info(
@@ -615,22 +616,22 @@ class ConversationService:
 
                 if stream:
                     async for chunk in self._generate_and_stream_ai_response(
-                        message.content,
-                        conversation_id,
-                        user_id,
-                        message.node_ids,
-                        message.attachment_ids,
+                            message.content,
+                            conversation_id,
+                            user_id,
+                            message.node_ids,
+                            message.attachment_ids,
                     ):
                         yield chunk
                 else:
                     full_message = ""
                     all_citations = []
                     async for chunk in self._generate_and_stream_ai_response(
-                        message.content,
-                        conversation_id,
-                        user_id,
-                        message.node_ids,
-                        message.attachment_ids,
+                            message.content,
+                            conversation_id,
+                            user_id,
+                            message.node_ids,
+                            message.attachment_ids,
                     ):
                         full_message += chunk.message
                         all_citations = all_citations + chunk.citations
@@ -652,12 +653,12 @@ class ConversationService:
             ) from e
 
     async def _get_conversation_with_message_count(
-        self, conversation_id: str
+            self, conversation_id: str
     ) -> Conversation:
         return await self.conversation_store.get_with_message_count(conversation_id)
 
     async def _generate_title(
-        self, conversation: Conversation, message_content: str
+            self, conversation: Conversation, message_content: str
     ) -> str:
         agent_type = conversation.agent_ids[0]
 
@@ -686,11 +687,11 @@ class ConversationService:
         await self.conversation_store.update_title(conversation_id, new_title)
 
     async def regenerate_last_message(
-        self,
-        conversation_id: str,
-        user_id: str,
-        node_ids: List[NodeContext] = [],
-        stream: bool = True,
+            self,
+            conversation_id: str,
+            user_id: str,
+            node_ids: List[NodeContext] = [],
+            stream: bool = True,
     ) -> AsyncGenerator[ChatMessageResponse, None]:
         try:
             access_level = await self.check_conversation_access(
@@ -742,11 +743,11 @@ class ConversationService:
 
             if stream:
                 async for chunk in self._generate_and_stream_ai_response(
-                    last_human_message.content,
-                    conversation_id,
-                    user_id,
-                    node_ids,
-                    attachment_ids,
+                        last_human_message.content,
+                        conversation_id,
+                        user_id,
+                        node_ids,
+                        attachment_ids,
                 ):
                     yield chunk
             else:
@@ -754,11 +755,11 @@ class ConversationService:
                 all_citations = []
 
                 async for chunk in self._generate_and_stream_ai_response(
-                    last_human_message.content,
-                    conversation_id,
-                    user_id,
-                    node_ids,
-                    attachment_ids,
+                        last_human_message.content,
+                        conversation_id,
+                        user_id,
+                        node_ids,
+                        attachment_ids,
                 ):
                     full_message += chunk.message
                     all_citations = all_citations + chunk.citations
@@ -783,10 +784,10 @@ class ConversationService:
             raise ConversationServiceError("Failed to regenerate last message.") from e
 
     async def regenerate_last_message_background(
-        self,
-        conversation_id: str,
-        node_ids: Optional[List[str]] = None,
-        attachment_ids: List[str] = [],
+            self,
+            conversation_id: str,
+            node_ids: Optional[List[str]] = None,
+            attachment_ids: List[str] = [],
     ) -> AsyncGenerator[ChatMessageResponse, None]:
         """Background version of regenerate_last_message for Celery task execution"""
         try:
@@ -823,11 +824,11 @@ class ConversationService:
 
             # Execute AI response generation with existing logic
             async for chunk in self._generate_and_stream_ai_response(
-                last_human_message.content,
-                conversation_id,
-                self.user_id,
-                node_contexts,
-                attachment_ids,
+                    last_human_message.content,
+                    conversation_id,
+                    self.user_id,
+                    node_contexts,
+                    attachment_ids,
             ):
                 yield chunk
 
@@ -854,7 +855,7 @@ class ConversationService:
         return message
 
     async def _archive_subsequent_messages(
-        self, conversation_id: str, timestamp: datetime
+            self, conversation_id: str, timestamp: datetime
     ):
         try:
             await self.message_store.archive_messages_after(conversation_id, timestamp)
@@ -889,12 +890,12 @@ class ConversationService:
         )
 
     async def _generate_and_stream_ai_response(
-        self,
-        query: str,
-        conversation_id: str,
-        user_id: str,
-        node_ids: List[NodeContext],
-        attachment_ids: Optional[List[str]] = None,
+            self,
+            query: str,
+            conversation_id: str,
+            user_id: str,
+            node_ids: List[NodeContext],
+            attachment_ids: Optional[List[str]] = None,
     ) -> AsyncGenerator[ChatMessageResponse, None]:
         conversation = await self.conversation_store.get_by_id(conversation_id)
         if not conversation:
@@ -946,19 +947,50 @@ class ConversationService:
                 )
 
             if type == "CUSTOM_AGENT":
-                res = (
-                    await self.agent_service.custom_agent_service.execute_agent_runtime(
-                        user_id,
-                        ChatContext(
-                            project_id=str(project_id),
-                            project_name=project_name,
-                            curr_agent_id=str(agent_id),
-                            history=validated_history[-12:],
-                            node_ids=[node.node_id for node in node_ids],
-                            query=query,
-                            conversation_id=conversation_id,
-                        ),
-                    )
+                # 1) Decidi quando vuoi JSON strict
+                structured_json_mode = "STRICT OUTPUT RULES" in query  # oppure un flag nella request
+
+                if structured_json_mode:
+                    # 2) NON streammare dal custom agent, genera output strutturato
+                    obj = await run_structured_repo_analysis(query)
+                    json_text = obj.model_dump_json(by_alias=True, exclude_none=False)
+
+                    # 3) Stream controllato: invii solo JSON valido a chunk
+                    chunk_size = 1024
+                    citations: list[str] = []
+                    tool_calls: list[str] = []
+
+                    for i in range(0, len(json_text), chunk_size):
+                        part = json_text[i:i + chunk_size]
+
+                        self.history_manager.add_message_chunk(
+                            conversation_id,
+                            part,
+                            MessageType.AI_GENERATED,
+                            citations=citations,
+                        )
+
+                        yield ChatMessageResponse(
+                            message=part,
+                            citations=citations,
+                            tool_calls=tool_calls,
+                        )
+
+                    self.history_manager.flush_message_buffer(conversation_id, MessageType.AI_GENERATED)
+                    return
+
+                # ---- default: comportamento attuale streaming del custom agent ----
+                res = await self.agent_service.custom_agent_service.execute_agent_runtime(
+                    user_id,
+                    ChatContext(
+                        project_id=str(project_id),
+                        project_name=project_name,
+                        curr_agent_id=str(agent_id),
+                        history=validated_history[-12:],
+                        node_ids=[node.node_id for node in node_ids],
+                        query=query,
+                        conversation_id=conversation_id,
+                    ),
                 )
                 async for chunk in res:
                     self.history_manager.add_message_chunk(
@@ -970,14 +1002,9 @@ class ConversationService:
                     yield ChatMessageResponse(
                         message=chunk.response,
                         citations=chunk.citations,
-                        tool_calls=[
-                            tool_call.model_dump_json()
-                            for tool_call in chunk.tool_calls
-                        ],
+                        tool_calls=[tool_call.model_dump_json() for tool_call in chunk.tool_calls],
                     )
-                self.history_manager.flush_message_buffer(
-                    conversation_id, MessageType.AI_GENERATED
-                )
+                self.history_manager.flush_message_buffer(conversation_id, MessageType.AI_GENERATED)
             else:
                 # Create enhanced ChatContext with multimodal support
                 nodes = [] if node_ids is None else [node.node_id for node in node_ids]
@@ -993,26 +1020,53 @@ class ConversationService:
                     conversation_id=conversation_id,
                 )
 
-                res = self.agent_service.execute_stream(chat_context)
+            structured_json_mode = "STRICT OUTPUT RULES" in query
+            if structured_json_mode:
+                obj = await run_structured_repo_analysis(query)
 
-                async for chunk in res:
+                json_text = obj.model_dump_json(by_alias=True, exclude_none=False)
+
+                chunk_size = 1024
+                citations = []
+                for i in range(0, len(json_text), chunk_size):
+                    part = json_text[i:i+chunk_size]
+
                     self.history_manager.add_message_chunk(
                         conversation_id,
-                        chunk.response,
+                        part,
                         MessageType.AI_GENERATED,
-                        citations=chunk.citations,
+                        citations=citations,
                     )
+
                     yield ChatMessageResponse(
-                        message=chunk.response,
-                        citations=chunk.citations,
-                        tool_calls=[
-                            tool_call.model_dump_json()
-                            for tool_call in chunk.tool_calls
-                        ],
+                        message=part,
+                        citations=citations,
+                        tool_calls=[],
                     )
-                self.history_manager.flush_message_buffer(
-                    conversation_id, MessageType.AI_GENERATED
+
+                self.history_manager.flush_message_buffer(conversation_id, MessageType.AI_GENERATED)
+                return
+
+            res = self.agent_service.execute_stream(chat_context)
+
+            async for chunk in res:
+                self.history_manager.add_message_chunk(
+                    conversation_id,
+                    chunk.response,
+                    MessageType.AI_GENERATED,
+                    citations=chunk.citations,
                 )
+                yield ChatMessageResponse(
+                    message=chunk.response,
+                    citations=chunk.citations,
+                    tool_calls=[
+                        tool_call.model_dump_json()
+                        for tool_call in chunk.tool_calls
+                    ],
+                )
+            self.history_manager.flush_message_buffer(
+                conversation_id, MessageType.AI_GENERATED
+            )
 
             logger.info(
                 f"Generated and streamed AI response for conversation {conversation.id} for user {user_id} using agent {agent_id}"
@@ -1023,11 +1077,11 @@ class ConversationService:
                 conversation_id=conversation.id,
                 user_id=user_id,
             )
-            raise ConversationServiceError(
-                "Failed to generate and stream AI response."
-            ) from e
+        raise ConversationServiceError(
+            "Failed to generate and stream AI response."
+        ) from e
 
-    async def _generate_and_stream_ai_response_background(
+async def _generate_and_stream_ai_response_background(
         self,
         query: str,
         conversation_id: str,
@@ -1035,490 +1089,490 @@ class ConversationService:
         node_ids: List[NodeContext],
         attachment_ids: Optional[List[str]] = None,
         run_id: str = None,
-    ) -> AsyncGenerator[ChatMessageResponse, None]:
-        """Background version for Celery tasks - reuses existing streaming logic"""
+) -> AsyncGenerator[ChatMessageResponse, None]:
+    """Background version for Celery tasks - reuses existing streaming logic"""
 
-        async for chunk in self._generate_and_stream_ai_response(
+    async for chunk in self._generate_and_stream_ai_response(
             query, conversation_id, user_id, node_ids, attachment_ids
-        ):
-            yield chunk
+    ):
+        yield chunk
 
-    async def _prepare_attachments_as_images(
+async def _prepare_attachments_as_images(
         self, attachment_ids: List[str]
-    ) -> Optional[Dict[str, Dict[str, Union[str, int]]]]:
-        """Convert attachment IDs directly to base64 images for multimodal processing"""
-        try:
-            if not attachment_ids:
-                return None
+) -> Optional[Dict[str, Dict[str, Union[str, int]]]]:
+    """Convert attachment IDs directly to base64 images for multimodal processing"""
+    try:
+        if not attachment_ids:
+            return None
 
-            images = {}
-            for attachment_id in attachment_ids:
-                try:
-                    # Get attachment info
-                    attachment = await self.media_service.get_attachment(attachment_id)
-                    logger.info(
-                        f"DEBUG: Retrieved attachment {attachment_id}: type={attachment.attachment_type.value if attachment else 'None'}, mime_type={attachment.mime_type if attachment else 'None'}"
-                    )
-                    if (
+        images = {}
+        for attachment_id in attachment_ids:
+            try:
+                # Get attachment info
+                attachment = await self.media_service.get_attachment(attachment_id)
+                logger.info(
+                    f"DEBUG: Retrieved attachment {attachment_id}: type={attachment.attachment_type.value if attachment else 'None'}, mime_type={attachment.mime_type if attachment else 'None'}"
+                )
+                if (
                         attachment
                         and attachment.attachment_type.value.upper() == "IMAGE"
-                    ):  # Check if it's an image
-                        base64_data = await self.media_service.get_image_as_base64(
-                            attachment_id
-                        )
-                        images[attachment_id] = {
-                            "base64": base64_data,
-                            "mime_type": attachment.mime_type,
-                            "file_name": attachment.file_name,
-                            "file_size": attachment.file_size,
-                        }
-                        logger.info(
-                            f"Prepared image {attachment_id} ({attachment.file_name}) for multimodal processing"
-                        )
-                    else:
-                        logger.info(
-                            f"DEBUG: Skipping attachment {attachment_id} - not an image or attachment not found"
-                        )
-                except Exception:
-                    logger.exception(
-                        f"Failed to prepare attachment {attachment_id} as image",
-                        attachment_id=attachment_id,
+                ):  # Check if it's an image
+                    base64_data = await self.media_service.get_image_as_base64(
+                        attachment_id
                     )
-                    continue
-
-            logger.info(
-                f"Prepared {len(images)} images from {len(attachment_ids)} attachments for multimodal processing"
-            )
-            return images if images else None
-
-        except Exception:
-            logger.exception("Error preparing attachments as images")
-            return None
-
-    async def _prepare_current_message_images(
-        self, conversation_id: str
-    ) -> Optional[Dict[str, Dict[str, Union[str, int]]]]:
-        """Get images from the most recent human message in the conversation"""
-        try:
-            # Get the most recent human message with attachments
-            latest_human_message = (
-                await self.message_store.get_latest_human_message_with_attachments(
-                    conversation_id
-                )
-            )
-
-            if not latest_human_message:
-                return None
-
-            # Get images from this message
-            images = await self.media_service.get_message_images_as_base64(
-                latest_human_message.id
-            )
-            return images if images else None
-
-        except Exception:
-            logger.exception(
-                f"Error preparing current message images for conversation {conversation_id}",
-                conversation_id=conversation_id,
-            )
-            return None
-
-    async def _prepare_conversation_context_images(
-        self, conversation_id: str, limit: int = 3
-    ) -> Optional[Dict[str, Dict[str, Union[str, int]]]]:
-        """Get recent images from conversation history for additional context"""
-        try:
-            # Get recent images from conversation (excluding the most recent message to avoid duplicates)
-            context_images = await self.media_service.get_conversation_recent_images(
-                conversation_id, limit=limit
-            )
-            return context_images if context_images else None
-
-        except Exception:
-            logger.exception(
-                f"Error preparing conversation context images for conversation {conversation_id}",
-                conversation_id=conversation_id,
-            )
-            return None
-
-    async def delete_conversation(self, conversation_id: str, user_id: str) -> dict:
-        try:
-            access_level = await self.check_conversation_access(
-                conversation_id, self.user_email, user_id
-            )
-            if access_level == ConversationAccessType.READ:
-                raise AccessTypeReadError("Access denied.")
-
-            # Delete related messages first
-            deleted_messages = await self.message_store.delete_for_conversation(
-                conversation_id
-            )
-
-            # Delete the conversation
-            deleted_conversation = await self.conversation_store.delete(conversation_id)
-
-            if deleted_conversation == 0:
-                raise ConversationNotFoundError(
-                    f"Conversation with id {conversation_id} not found"
-                )
-
-            PostHogClient().send_event(
-                user_id,
-                "delete_conversation_event",
-                {"conversation_id": conversation_id},
-            )
-
-            logger.info(
-                f"Deleted conversation {conversation_id} and {deleted_messages} related messages"
-            )
-            return {
-                "status": "success",
-                "message": f"Conversation {conversation_id} and its messages have been permanently deleted.",
-                "deleted_messages_count": deleted_messages,
-            }
-
-        except ConversationNotFoundError as e:
-            logger.warning(str(e))
-            raise
-        except AccessTypeReadError:
-            raise
-        except SQLAlchemyError as e:
-            logger.exception(
-                f"Database error in delete_conversation for {conversation_id}",
-                conversation_id=conversation_id,
-                user_id=user_id,
-            )
-            raise ConversationServiceError(
-                f"Failed to delete conversation {conversation_id} due to a database error"
-            ) from e
-        except Exception as e:
-            logger.exception(
-                f"Unexpected error in delete_conversation for {conversation_id}",
-                conversation_id=conversation_id,
-                user_id=user_id,
-            )
-            raise ConversationServiceError(
-                f"Failed to delete conversation {conversation_id} due to an unexpected error"
-            ) from e
-
-    async def get_conversation_info(
-        self, conversation_id: str, user_id: str
-    ) -> ConversationInfoResponse:
-        try:
-            logger.info("Getting info for conversation: {}", conversation_id)
-            conversation = await self.conversation_store.get_by_id(conversation_id)
-
-            if not conversation:
-                logger.warning(f"Conversation {conversation_id} not found in database")
-                raise ConversationNotFoundError(
-                    f"Conversation with id {conversation_id} not found"
-                )
-
-            is_creator = conversation.user_id == user_id
-
-            access_type = await self.check_conversation_access(
-                conversation_id, self.user_email, user_id
-            )
-
-            if access_type == ConversationAccessType.NOT_FOUND:
-                logger.bind(conversation_id=conversation_id, user_id=user_id).error(
-                    f"Access denied - access type is NOT_FOUND for user {user_id} on conversation {conversation_id}"
-                )
-                raise AccessTypeNotFoundError("Access type not found")
-
-            total_messages = await self.message_store.count_active_for_conversation(
-                conversation_id
-            )
-
-            agent_id = conversation.agent_ids[0] if conversation.agent_ids else None
-            agent_ids = conversation.agent_ids
-            if agent_id:
-                system_agents = self.agent_service._system_agents(
-                    self.provider_service, self.prompt_service, self.tool_service
-                )
-
-                if agent_id in system_agents.keys():
-                    agent_ids = conversation.agent_ids
+                    images[attachment_id] = {
+                        "base64": base64_data,
+                        "mime_type": attachment.mime_type,
+                        "file_name": attachment.file_name,
+                        "file_size": attachment.file_size,
+                    }
+                    logger.info(
+                        f"Prepared image {attachment_id} ({attachment.file_name}) for multimodal processing"
+                    )
                 else:
-                    custom_agent = await self.custom_agent_service.get_agent_model(
-                        agent_id
+                    logger.info(
+                        f"DEBUG: Skipping attachment {attachment_id} - not an image or attachment not found"
                     )
-
-                    if custom_agent:
-                        agent_ids = [custom_agent.role]
-
-            result = ConversationInfoResponse(
-                id=conversation.id,
-                title=conversation.title,
-                status=conversation.status,
-                project_ids=conversation.project_ids,
-                created_at=conversation.created_at,
-                updated_at=conversation.updated_at,
-                total_messages=total_messages,
-                agent_ids=agent_ids,
-                access_type=access_type,
-                is_creator=is_creator,
-                creator_id=conversation.user_id,
-                visibility=conversation.visibility,
-            )
-            return result
-        except ConversationNotFoundError as e:
-            logger.warning(f"ConversationNotFoundError: {str(e)}")
-            raise
-        except AccessTypeNotFoundError:
-            logger.exception(
-                f"AccessTypeNotFoundError in get_conversation_info for {conversation_id}",
-                conversation_id=conversation_id,
-                user_id=user_id,
-            )
-            raise
-        except Exception as e:
-            logger.exception(
-                f"Error in get_conversation_info for {conversation_id}",
-                conversation_id=conversation_id,
-                user_id=user_id,
-            )
-            raise ConversationServiceError(
-                f"Failed to get conversation info for {conversation_id}"
-            ) from e
-
-    async def get_conversation_messages(
-        self, conversation_id: str, start: int, limit: int, user_id: str
-    ) -> List[MessageResponse]:
-        try:
-            access_level = await self.check_conversation_access(
-                conversation_id, self.user_email, user_id
-            )
-
-            if access_level == ConversationAccessType.NOT_FOUND:
-                logger.bind(conversation_id=conversation_id, user_id=user_id).error(
-                    f"Access denied - access level is NOT_FOUND for user {user_id} on conversation {conversation_id}"
+            except Exception:
+                logger.exception(
+                    f"Failed to prepare attachment {attachment_id} as image",
+                    attachment_id=attachment_id,
                 )
-                raise AccessTypeNotFoundError("Access denied.")
+                continue
 
-            conversation = await self.conversation_store.get_by_id(conversation_id)
-            if not conversation:
-                logger.warning(f"Conversation {conversation_id} not found in database")
-                raise ConversationNotFoundError(
-                    f"Conversation with id {conversation_id} not found"
-                )
-
-            messages = await self.message_store.get_active_for_conversation(
-                conversation_id, start, limit
-            )
-
-            message_responses = []
-            for message in messages:
-                # Get attachments for this message
-                attachments = None
-                if message.has_attachments:
-                    try:
-                        attachments = await self.media_service.get_message_attachments(
-                            message.id
-                        )
-                    except Exception:
-                        logger.exception(
-                            f"Failed to get attachments for message {message.id}",
-                            message_id=message.id,
-                            conversation_id=conversation_id,
-                        )
-                        attachments = []
-
-                message_responses.append(
-                    MessageResponse(
-                        id=message.id,
-                        conversation_id=message.conversation_id,
-                        content=message.content,
-                        sender_id=message.sender_id,
-                        type=message.type,
-                        status=message.status,
-                        created_at=message.created_at,
-                        citations=(
-                            message.citations.split(",") if message.citations else None
-                        ),
-                        has_attachments=message.has_attachments,
-                        attachments=attachments,
-                    )
-                )
-            return message_responses
-        except ConversationNotFoundError as e:
-            logger.warning(f"ConversationNotFoundError: {str(e)}")
-            raise
-        except AccessTypeNotFoundError:
-            logger.exception(
-                f"AccessTypeNotFoundError in get_conversation_messages for {conversation_id}",
-                conversation_id=conversation_id,
-                user_id=user_id,
-            )
-            raise
-        except Exception as e:
-            logger.exception(
-                f"Error in get_conversation_messages for {conversation_id}",
-                conversation_id=conversation_id,
-                user_id=user_id,
-            )
-            raise ConversationServiceError(
-                f"Failed to get messages for conversation {conversation_id}"
-            ) from e
-
-    async def stop_generation(
-        self, conversation_id: str, user_id: str, run_id: str = None
-    ) -> dict:
         logger.info(
-            f"Attempting to stop generation for conversation {conversation_id}, run_id: {run_id}"
+            f"Prepared {len(images)} images from {len(attachment_ids)} attachments for multimodal processing"
+        )
+        return images if images else None
+
+    except Exception:
+        logger.exception("Error preparing attachments as images")
+        return None
+
+async def _prepare_current_message_images(
+        self, conversation_id: str
+) -> Optional[Dict[str, Dict[str, Union[str, int]]]]:
+    """Get images from the most recent human message in the conversation"""
+    try:
+        # Get the most recent human message with attachments
+        latest_human_message = (
+            await self.message_store.get_latest_human_message_with_attachments(
+                conversation_id
+            )
         )
 
-        # If run_id not provided, try to find active session
-        if not run_id:
-            from app.modules.conversations.conversation.conversation_schema import (
-                ActiveSessionErrorResponse,
+        if not latest_human_message:
+            return None
+
+        # Get images from this message
+        images = await self.media_service.get_message_images_as_base64(
+            latest_human_message.id
+        )
+        return images if images else None
+
+    except Exception:
+        logger.exception(
+            f"Error preparing current message images for conversation {conversation_id}",
+            conversation_id=conversation_id,
+        )
+        return None
+
+async def _prepare_conversation_context_images(
+        self, conversation_id: str, limit: int = 3
+) -> Optional[Dict[str, Dict[str, Union[str, int]]]]:
+    """Get recent images from conversation history for additional context"""
+    try:
+        # Get recent images from conversation (excluding the most recent message to avoid duplicates)
+        context_images = await self.media_service.get_conversation_recent_images(
+            conversation_id, limit=limit
+        )
+        return context_images if context_images else None
+
+    except Exception:
+        logger.exception(
+            f"Error preparing conversation context images for conversation {conversation_id}",
+            conversation_id=conversation_id,
+        )
+        return None
+
+async def delete_conversation(self, conversation_id: str, user_id: str) -> dict:
+    try:
+        access_level = await self.check_conversation_access(
+            conversation_id, self.user_email, user_id
+        )
+        if access_level == ConversationAccessType.READ:
+            raise AccessTypeReadError("Access denied.")
+
+        # Delete related messages first
+        deleted_messages = await self.message_store.delete_for_conversation(
+            conversation_id
+        )
+
+        # Delete the conversation
+        deleted_conversation = await self.conversation_store.delete(conversation_id)
+
+        if deleted_conversation == 0:
+            raise ConversationNotFoundError(
+                f"Conversation with id {conversation_id} not found"
             )
 
-            active_session = self.session_service.get_active_session(conversation_id)
+        PostHogClient().send_event(
+            user_id,
+            "delete_conversation_event",
+            {"conversation_id": conversation_id},
+        )
 
-            if isinstance(active_session, ActiveSessionErrorResponse):
-                # No active session found - this is okay, just return success
-                # The session might have already completed or been cleared
-                logger.info(
-                    f"No active session found for conversation {conversation_id} - already stopped or never started"
-                )
-                return {
-                    "status": "success",
-                    "message": "No active session to stop",
-                }
-
-            run_id = active_session.sessionId
-            logger.info(
-                f"Found active session {run_id} for conversation {conversation_id}"
-            )
-
-        # Set cancellation flag in Redis for background task to check
-        self.redis_manager.set_cancellation(conversation_id, run_id)
-
-        # Retrieve and revoke the Celery task
-        task_id = self.redis_manager.get_task_id(conversation_id, run_id)
-
-        if task_id:
-            try:
-                # Revoke the task - this works for both queued and running tasks:
-                # - For queued tasks: Prevents them from starting execution
-                # - For running tasks: Sends SIGTERM to terminate them
-                # terminate=True ensures both cases are handled
-                self.celery_app.control.revoke(
-                    task_id, terminate=True, signal="SIGTERM"
-                )
-                logger.info(
-                    f"Revoked Celery task {task_id} for {conversation_id}:{run_id} (works for both queued and running tasks)"
-                )
-            except Exception as e:
-                logger.warning(f"Failed to revoke Celery task {task_id}: {str(e)}")
-                # Continue anyway - cancellation flag is set
-        else:
-            logger.info(
-                f"No task ID found for {conversation_id}:{run_id} - task may have already completed or been revoked"
-            )
-
-        # Always clear the session - publish end event and update status
-        # This ensures clients know the session is stopped and prevents stale sessions
-        # This is important even if there's no task_id - it clears any stale session data
-        # This will also handle the case where stop is called with a stale session_id
-        try:
-            self.redis_manager.clear_session(conversation_id, run_id)
-        except Exception as e:
-            logger.warning(
-                f"Failed to clear session for {conversation_id}:{run_id}: {str(e)}"
-            )
-            # Continue anyway - the important part (revocation) is done
-
+        logger.info(
+            f"Deleted conversation {conversation_id} and {deleted_messages} related messages"
+        )
         return {
             "status": "success",
-            "message": "Cancellation signal sent and task revoked",
+            "message": f"Conversation {conversation_id} and its messages have been permanently deleted.",
+            "deleted_messages_count": deleted_messages,
         }
 
-    async def rename_conversation(
-        self, conversation_id: str, new_title: str, user_id: str
-    ) -> dict:
-        try:
-            access_level = await self.check_conversation_access(
-                conversation_id, self.user_email, user_id
+    except ConversationNotFoundError as e:
+        logger.warning(str(e))
+        raise
+    except AccessTypeReadError:
+        raise
+    except SQLAlchemyError as e:
+        logger.exception(
+            f"Database error in delete_conversation for {conversation_id}",
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
+        raise ConversationServiceError(
+            f"Failed to delete conversation {conversation_id} due to a database error"
+        ) from e
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error in delete_conversation for {conversation_id}",
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
+        raise ConversationServiceError(
+            f"Failed to delete conversation {conversation_id} due to an unexpected error"
+        ) from e
+
+async def get_conversation_info(
+        self, conversation_id: str, user_id: str
+) -> ConversationInfoResponse:
+    try:
+        logger.info("Getting info for conversation: {}", conversation_id)
+        conversation = await self.conversation_store.get_by_id(conversation_id)
+
+        if not conversation:
+            logger.warning(f"Conversation {conversation_id} not found in database")
+            raise ConversationNotFoundError(
+                f"Conversation with id {conversation_id} not found"
             )
-            if access_level == ConversationAccessType.READ:
-                raise AccessTypeReadError("Access denied.")
 
-            conversation = await self.conversation_store.get_by_id(conversation_id)
+        is_creator = conversation.user_id == user_id
 
-            if not conversation or conversation.user_id != user_id:
-                raise ConversationNotFoundError(
-                    f"Conversation with id {conversation_id} not found"
+        access_type = await self.check_conversation_access(
+            conversation_id, self.user_email, user_id
+        )
+
+        if access_type == ConversationAccessType.NOT_FOUND:
+            logger.bind(conversation_id=conversation_id, user_id=user_id).error(
+                f"Access denied - access type is NOT_FOUND for user {user_id} on conversation {conversation_id}"
+            )
+            raise AccessTypeNotFoundError("Access type not found")
+
+        total_messages = await self.message_store.count_active_for_conversation(
+            conversation_id
+        )
+
+        agent_id = conversation.agent_ids[0] if conversation.agent_ids else None
+        agent_ids = conversation.agent_ids
+        if agent_id:
+            system_agents = self.agent_service._system_agents(
+                self.provider_service, self.prompt_service, self.tool_service
+            )
+
+            if agent_id in system_agents.keys():
+                agent_ids = conversation.agent_ids
+            else:
+                custom_agent = await self.custom_agent_service.get_agent_model(
+                    agent_id
                 )
 
-            await self.conversation_store.update_title(conversation_id, new_title)
+                if custom_agent:
+                    agent_ids = [custom_agent.role]
 
+        result = ConversationInfoResponse(
+            id=conversation.id,
+            title=conversation.title,
+            status=conversation.status,
+            project_ids=conversation.project_ids,
+            created_at=conversation.created_at,
+            updated_at=conversation.updated_at,
+            total_messages=total_messages,
+            agent_ids=agent_ids,
+            access_type=access_type,
+            is_creator=is_creator,
+            creator_id=conversation.user_id,
+            visibility=conversation.visibility,
+        )
+        return result
+    except ConversationNotFoundError as e:
+        logger.warning(f"ConversationNotFoundError: {str(e)}")
+        raise
+    except AccessTypeNotFoundError:
+        logger.exception(
+            f"AccessTypeNotFoundError in get_conversation_info for {conversation_id}",
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
+        raise
+    except Exception as e:
+        logger.exception(
+            f"Error in get_conversation_info for {conversation_id}",
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
+        raise ConversationServiceError(
+            f"Failed to get conversation info for {conversation_id}"
+        ) from e
+
+async def get_conversation_messages(
+        self, conversation_id: str, start: int, limit: int, user_id: str
+) -> List[MessageResponse]:
+    try:
+        access_level = await self.check_conversation_access(
+            conversation_id, self.user_email, user_id
+        )
+
+        if access_level == ConversationAccessType.NOT_FOUND:
+            logger.bind(conversation_id=conversation_id, user_id=user_id).error(
+                f"Access denied - access level is NOT_FOUND for user {user_id} on conversation {conversation_id}"
+            )
+            raise AccessTypeNotFoundError("Access denied.")
+
+        conversation = await self.conversation_store.get_by_id(conversation_id)
+        if not conversation:
+            logger.warning(f"Conversation {conversation_id} not found in database")
+            raise ConversationNotFoundError(
+                f"Conversation with id {conversation_id} not found"
+            )
+
+        messages = await self.message_store.get_active_for_conversation(
+            conversation_id, start, limit
+        )
+
+        message_responses = []
+        for message in messages:
+            # Get attachments for this message
+            attachments = None
+            if message.has_attachments:
+                try:
+                    attachments = await self.media_service.get_message_attachments(
+                        message.id
+                    )
+                except Exception:
+                    logger.exception(
+                        f"Failed to get attachments for message {message.id}",
+                        message_id=message.id,
+                        conversation_id=conversation_id,
+                    )
+                    attachments = []
+
+            message_responses.append(
+                MessageResponse(
+                    id=message.id,
+                    conversation_id=message.conversation_id,
+                    content=message.content,
+                    sender_id=message.sender_id,
+                    type=message.type,
+                    status=message.status,
+                    created_at=message.created_at,
+                    citations=(
+                        message.citations.split(",") if message.citations else None
+                    ),
+                    has_attachments=message.has_attachments,
+                    attachments=attachments,
+                )
+            )
+        return message_responses
+    except ConversationNotFoundError as e:
+        logger.warning(f"ConversationNotFoundError: {str(e)}")
+        raise
+    except AccessTypeNotFoundError:
+        logger.exception(
+            f"AccessTypeNotFoundError in get_conversation_messages for {conversation_id}",
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
+        raise
+    except Exception as e:
+        logger.exception(
+            f"Error in get_conversation_messages for {conversation_id}",
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
+        raise ConversationServiceError(
+            f"Failed to get messages for conversation {conversation_id}"
+        ) from e
+
+async def stop_generation(
+        self, conversation_id: str, user_id: str, run_id: str = None
+) -> dict:
+    logger.info(
+        f"Attempting to stop generation for conversation {conversation_id}, run_id: {run_id}"
+    )
+
+    # If run_id not provided, try to find active session
+    if not run_id:
+        from app.modules.conversations.conversation.conversation_schema import (
+            ActiveSessionErrorResponse,
+        )
+
+        active_session = self.session_service.get_active_session(conversation_id)
+
+        if isinstance(active_session, ActiveSessionErrorResponse):
+            # No active session found - this is okay, just return success
+            # The session might have already completed or been cleared
             logger.info(
-                f"Renamed conversation {conversation_id} to '{new_title}' by user {user_id}"
+                f"No active session found for conversation {conversation_id} - already stopped or never started"
             )
             return {
                 "status": "success",
-                "message": f"Conversation renamed to '{new_title}'",
+                "message": "No active session to stop",
             }
 
-        except SQLAlchemyError as e:
-            logger.exception(
-                f"Database error in rename_conversation for {conversation_id}",
-                conversation_id=conversation_id,
-                user_id=user_id,
-            )
-            raise ConversationServiceError(
-                "Failed to rename conversation due to a database error"
-            ) from e
-        except AccessTypeReadError:
-            raise
-        except Exception as e:
-            logger.exception(
-                f"Unexpected error in rename_conversation for {conversation_id}",
-                conversation_id=conversation_id,
-                user_id=user_id,
-            )
-            raise ConversationServiceError(
-                "Failed to rename conversation due to an unexpected error"
-            ) from e
+        run_id = active_session.sessionId
+        logger.info(
+            f"Found active session {run_id} for conversation {conversation_id}"
+        )
 
-    async def get_conversations_with_projects_for_user(
+    # Set cancellation flag in Redis for background task to check
+    self.redis_manager.set_cancellation(conversation_id, run_id)
+
+    # Retrieve and revoke the Celery task
+    task_id = self.redis_manager.get_task_id(conversation_id, run_id)
+
+    if task_id:
+        try:
+            # Revoke the task - this works for both queued and running tasks:
+            # - For queued tasks: Prevents them from starting execution
+            # - For running tasks: Sends SIGTERM to terminate them
+            # terminate=True ensures both cases are handled
+            self.celery_app.control.revoke(
+                task_id, terminate=True, signal="SIGTERM"
+            )
+            logger.info(
+                f"Revoked Celery task {task_id} for {conversation_id}:{run_id} (works for both queued and running tasks)"
+            )
+        except Exception as e:
+            logger.warning(f"Failed to revoke Celery task {task_id}: {str(e)}")
+            # Continue anyway - cancellation flag is set
+    else:
+        logger.info(
+            f"No task ID found for {conversation_id}:{run_id} - task may have already completed or been revoked"
+        )
+
+    # Always clear the session - publish end event and update status
+    # This ensures clients know the session is stopped and prevents stale sessions
+    # This is important even if there's no task_id - it clears any stale session data
+    # This will also handle the case where stop is called with a stale session_id
+    try:
+        self.redis_manager.clear_session(conversation_id, run_id)
+    except Exception as e:
+        logger.warning(
+            f"Failed to clear session for {conversation_id}:{run_id}: {str(e)}"
+        )
+        # Continue anyway - the important part (revocation) is done
+
+    return {
+        "status": "success",
+        "message": "Cancellation signal sent and task revoked",
+    }
+
+async def rename_conversation(
+        self, conversation_id: str, new_title: str, user_id: str
+) -> dict:
+    try:
+        access_level = await self.check_conversation_access(
+            conversation_id, self.user_email, user_id
+        )
+        if access_level == ConversationAccessType.READ:
+            raise AccessTypeReadError("Access denied.")
+
+        conversation = await self.conversation_store.get_by_id(conversation_id)
+
+        if not conversation or conversation.user_id != user_id:
+            raise ConversationNotFoundError(
+                f"Conversation with id {conversation_id} not found"
+            )
+
+        await self.conversation_store.update_title(conversation_id, new_title)
+
+        logger.info(
+            f"Renamed conversation {conversation_id} to '{new_title}' by user {user_id}"
+        )
+        return {
+            "status": "success",
+            "message": f"Conversation renamed to '{new_title}'",
+        }
+
+    except SQLAlchemyError as e:
+        logger.exception(
+            f"Database error in rename_conversation for {conversation_id}",
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
+        raise ConversationServiceError(
+            "Failed to rename conversation due to a database error"
+        ) from e
+    except AccessTypeReadError:
+        raise
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error in rename_conversation for {conversation_id}",
+            conversation_id=conversation_id,
+            user_id=user_id,
+        )
+        raise ConversationServiceError(
+            "Failed to rename conversation due to an unexpected error"
+        ) from e
+
+async def get_conversations_with_projects_for_user(
         self,
         user_id: str,
         start: int,
         limit: int,
         sort: str = "updated_at",
         order: str = "desc",
-    ) -> List[Conversation]:
-        """
-        Orchestrates the retrieval of conversations for a user by delegating to the store.
-        """
-        try:
-            # The service's job is now just to call the store.
-            # All the complex query logic is gone.
-            return await self.conversation_store.get_for_user(
-                user_id=user_id,
-                start=start,
-                limit=limit,
-                sort=sort,
-                order=order,
-            )
-        except StoreError as e:
-            # Catch the specific error from the store and wrap it in a
-            # service-level exception, which is a good practice.
-            logger.exception(
-                f"Store layer failed to get conversations for user {user_id}",
-                user_id=user_id,
-            )
-            raise ConversationServiceError(
-                f"Failed to retrieve conversations for user {user_id}"
-            ) from e
-        except Exception as e:
-            logger.exception(
-                f"Unexpected error while getting conversations for user {user_id}",
-                user_id=user_id,
-            )
-            raise ConversationServiceError(
-                f"An unexpected error occurred while retrieving conversations for user {user_id}"
-            ) from e
+) -> List[Conversation]:
+    """
+    Orchestrates the retrieval of conversations for a user by delegating to the store.
+    """
+    try:
+        # The service's job is now just to call the store.
+        # All the complex query logic is gone.
+        return await self.conversation_store.get_for_user(
+            user_id=user_id,
+            start=start,
+            limit=limit,
+            sort=sort,
+            order=order,
+        )
+    except StoreError as e:
+        # Catch the specific error from the store and wrap it in a
+        # service-level exception, which is a good practice.
+        logger.exception(
+            f"Store layer failed to get conversations for user {user_id}",
+            user_id=user_id,
+        )
+        raise ConversationServiceError(
+            f"Failed to retrieve conversations for user {user_id}"
+        ) from e
+    except Exception as e:
+        logger.exception(
+            f"Unexpected error while getting conversations for user {user_id}",
+            user_id=user_id,
+        )
+        raise ConversationServiceError(
+            f"An unexpected error occurred while retrieving conversations for user {user_id}"
+        ) from e
