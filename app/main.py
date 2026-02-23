@@ -173,13 +173,9 @@ class MainApp:
     def add_health_check(self):
         @self.app.get("/health", tags=["Health"])
         def health_check():
+            logger.info("Health Check Succeeded")
             return {
                 "status": "ok",
-                "version": subprocess.check_output(
-                    ["git", "rev-parse", "--short", "HEAD"]
-                )
-                .strip()
-                .decode("utf-8"),
             }
 
     async def startup_event(self):
